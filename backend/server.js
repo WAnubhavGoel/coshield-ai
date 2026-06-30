@@ -1,4 +1,5 @@
 import app from "./app.js";
+import "./services/worker.js";
 
 const PORT = process.env.PORT || 5000;
 
