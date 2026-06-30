@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+enum Role {
+  USER
+  COMPLIANCE_OFFICER
+  ADMIN
+}
+
+model Tenant {
+  id          String          @id @default(uuid())
+  name        String
+  users       User[]
+  departments Department[]
+  documents   Document[]
+  chunks      DocumentChunk[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Department {
+  id        String           @id @default(uuid())
+  name      String
+  tenantId  String
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users     UserDepartment[]
+  documents Document[]
+  chunks    DocumentChunk[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([name, tenantId])
+}
+
+model User {
+  id           String           @id @default(uuid())
+  email        String           @unique
+  passwordHash String?
+  googleId     String?          @unique
+  role         Role             @default(USER)
+  tenantId     String
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  departments  UserDepartment[]
+  documents    Document[]       @relation("UploadedBy")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+// Join table for User-Department (Many-to-Many)
+model UserDepartment {
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@id([userId, departmentId])
+}
+
+model Document {
+  id           String          @id @default(uuid())
+  title        String
+  s3Url        String
+  status       String          // PENDING, PROCESSING, COMPLETED, FAILED
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedById String
+  uploadedBy   User            @relation("UploadedBy", fields: [uploadedById], references: [id])
+  roleRequired Role            @default(USER)
+  departmentId String?
+  department   Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  chunks       DocumentChunk[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model DocumentChunk {
+  id           String                      @id @default(uuid())
+  documentId   String
+  document     Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  content      String                      // The chunk text
+  pageNumber   Int
+  
+  // Denormalized fields for high-performance RBAC vector filtering
+  tenantId     String
+  tenant       Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roleRequired Role                        @default(USER)
+  departmentId String?
+  department   Department?                 @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  
+  // Vector embedding column using Unsupported type
+  embedding    Unsupported("vector(1536)")?
+  
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+
+  @@index([tenantId])
+}
+
+// Session store for Passport.js session backup
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String
+  expiresAt DateTime
+}
