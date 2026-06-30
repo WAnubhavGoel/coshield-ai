@@ -2,9 +2,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import passport from "passport";
 import { prisma } from "../prisma/prisma.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "coshield_default_jwt_secret_key_123456";
-const FRONTEND_CALLBACK_URL = process.env.FRONTEND_CALLBACK_URL || "http://localhost:5173/auth/callback";
+import { JWT_SECRET, FRONTEND_CALLBACK_URL } from "../config/constants.js";
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -20,11 +18,7 @@ const generateToken = (user) => {
 };
 
 export const register = async (req, res) => {
-  const { email, password, tenantName, role } = req.body;
-
-  if (!email || !password || !tenantName) {
-    return res.status(400).json({ error: "Email, password, and organization name are required" });
-  }
+  const { email, password, tenantName } = req.body;
 
   try {
     const existingUser = await prisma.user.findUnique({
@@ -52,7 +46,7 @@ export const register = async (req, res) => {
       data: {
         email: email.toLowerCase(),
         passwordHash,
-        role: role || "USER",
+        role: "USER",
         tenantId: tenant.id
       },
       include: { tenant: true }
@@ -60,7 +54,7 @@ export const register = async (req, res) => {
 
     const token = generateToken(user);
 
-    return res.status(210).json({
+    return res.status(201).json({
       message: "Registration successful",
       token,
       user: {

@@ -1,15 +1,15 @@
 import { Worker } from "bullmq";
 import fs from "fs/promises";
-import path from "path";
 import crypto from "crypto";
 import { prisma } from "../prisma/prisma.js";
 import { getEmbedding } from "./openai.js";
 import { QUEUE_NAME, redisConnection } from "./queue.js";
+import { invalidateByPattern } from "./cache.js";
 
 async function extractTextFromPDF(filePath) {
   try {
     const dataBuffer = await fs.readFile(filePath);
-    
+
     try {
       const pdfParse = (await import("pdf-parse")).default;
       const data = await pdfParse(dataBuffer);
@@ -32,9 +32,9 @@ async function extractTextFromPDF(filePath) {
 function chunkText(text, size = 500, overlap = 100) {
   const chunks = [];
   let startIndex = 0;
-  
+
   const cleanText = text.replace(/\s+/g, " ").trim();
-  
+
   if (cleanText.length === 0) return [];
 
   while (startIndex < cleanText.length) {
@@ -42,7 +42,7 @@ function chunkText(text, size = 500, overlap = 100) {
     chunks.push(chunk);
     startIndex += size - overlap;
   }
-  
+
   return chunks;
 }
 
@@ -60,14 +60,14 @@ if (redisConnection) {
         });
 
         const fullText = await extractTextFromPDF(filePath);
-        
+
         const textChunks = chunkText(fullText, 600, 150);
         console.log(`Document split into ${textChunks.length} chunks.`);
 
         for (let i = 0; i < textChunks.length; i++) {
           const content = textChunks[i];
           const pageNumber = Math.floor(i / 3) + 1;
-          
+
           const embedding = await getEmbedding(content);
           const embeddingString = `[${embedding.join(",")}]`;
           const chunkId = crypto.randomUUID();
@@ -105,15 +105,20 @@ if (redisConnection) {
           data: { status: "COMPLETED" }
         });
 
-        console.log(`Ingestion job ${job.id} completed successfully.`);
+        // Invalidate compliance and documents cache for this tenant
+        // so that the newly ingested document is included in future queries
+        await invalidateByPattern(`coshield:compliance:${tenantId}:*`);
+        await invalidateByPattern(`coshield:documents:${tenantId}*`);
+
+        console.log(`Ingestion job ${job.id} completed. Cache invalidated for tenant ${tenantId}.`);
       } catch (error) {
         console.error(`Ingestion job ${job.id} failed:`, error.message);
-        
+
         await prisma.document.update({
           where: { id: documentId },
           data: { status: "FAILED" }
         }).catch(err => console.error("Failed to update status to FAILED:", err.message));
-        
+
         throw error;
       }
     },

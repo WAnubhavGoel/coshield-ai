@@ -1,7 +1,6 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../prisma/prisma.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "coshield_default_jwt_secret_key_123456";
+import { JWT_SECRET, ROLE_HIERARCHY } from "../config/constants.js";
 
 export const authenticateJWT = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -22,11 +21,6 @@ export const authenticateJWT = async (req, res, next) => {
         departments: {
           select: {
             departmentId: true,
-            department: {
-              select: {
-                name: true
-              }
-            }
           }
         }
       }
@@ -47,25 +41,21 @@ export const authenticateJWT = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error("JWT Verification error:", error);
-    return res.status(403).json({ error: "Invalid or expired token" });
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Token has expired. Please log in again." });
+    }
+    return res.status(403).json({ error: "Invalid token" });
   }
 };
 
 export const requireRole = (minRole) => {
-  const roleHierarchy = {
-    USER: 1,
-    COMPLIANCE_OFFICER: 2,
-    ADMIN: 3
-  };
-
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const userRoleValue = roleHierarchy[req.user.role] || 0;
-    const requiredRoleValue = roleHierarchy[minRole] || 0;
+    const userRoleValue = ROLE_HIERARCHY[req.user.role] || 0;
+    const requiredRoleValue = ROLE_HIERARCHY[minRole] || 0;
 
     if (userRoleValue < requiredRoleValue) {
       return res.status(403).json({ error: `Requires role: ${minRole} or higher` });

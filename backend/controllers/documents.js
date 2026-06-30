@@ -1,7 +1,8 @@
 import path from "path";
-import fs from "fs";
+import fs from "fs/promises";
 import { prisma } from "../prisma/prisma.js";
 import { documentQueue } from "../services/queue.js";
+import { invalidateByPattern, buildDocumentsCacheKey } from "../services/cache.js";
 
 export const uploadDocument = async (req, res) => {
   const { title, roleRequired, departmentId } = req.body;
@@ -40,14 +41,16 @@ export const uploadDocument = async (req, res) => {
       console.warn("BullMQ queue is not available. Document will remain in PENDING status.");
     }
 
+    await invalidateByPattern(`coshield:documents:${req.user.tenantId}*`);
+
     return res.status(202).json({
       message: "Document upload accepted, ingestion started in background",
       document
     });
   } catch (error) {
     console.error("Document upload error:", error);
-    if (file && fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
+    if (file) {
+      await fs.unlink(file.path).catch(() => {});
     }
     return res.status(500).json({ error: "Failed to create document record during upload" });
   }

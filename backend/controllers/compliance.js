@@ -1,5 +1,7 @@
 import { prisma } from "../prisma/prisma.js";
 import { getEmbedding, generateChatCompletion } from "../services/openai.js";
+import { getCached, setCache, buildComplianceCacheKey } from "../services/cache.js";
+import { CACHE_TTL } from "../config/constants.js";
 
 function performRRF(vectorResults, keywordResults, k = 60) {
   const scoreMap = new Map();
@@ -36,13 +38,15 @@ function performRRF(vectorResults, keywordResults, k = 60) {
 export const queryCompliance = async (req, res) => {
   const { question } = req.body;
 
-  if (!question || typeof question !== "string") {
-    return res.status(400).json({ error: "A valid natural language question string is required." });
-  }
-
   const tenantId = req.user.tenantId;
   const userRole = req.user.role;
   const userDepartments = req.user.departments || [];
+
+  const cacheKey = buildComplianceCacheKey(tenantId, userRole, userDepartments, question);
+  const cached = await getCached(cacheKey);
+  if (cached) {
+    return res.status(200).json({ ...cached, cached: true });
+  }
 
   try {
     const queryEmbedding = await getEmbedding(question);
@@ -88,12 +92,13 @@ export const queryCompliance = async (req, res) => {
     if (fusedChunks.length === 0) {
       return res.status(200).json({
         answer: "No relevant security policies or compliance documents were found matching your request. Please ensure the document is uploaded and you have appropriate department clearances.",
-        citations: []
+        citations: [],
+        cached: false
       });
     }
 
     const contextContent = fusedChunks
-      .map((chunk, index) => `[Source ID: ${chunk.id}] [Document: ${chunk.documentTitle}] [Page: ${chunk.pageNumber}]\nContent: ${chunk.content}`)
+      .map((chunk) => `[Source ID: ${chunk.id}] [Document: ${chunk.documentTitle}] [Page: ${chunk.pageNumber}]\nContent: ${chunk.content}`)
       .join("\n\n---\n\n");
 
     const systemPrompt = `You are CoShield AI, a premium Enterprise Security & Compliance RAG Engine.
@@ -122,7 +127,7 @@ Strictly enforce that you only include citations for chunk_ids that are present 
     const userPrompt = `Context:\n${contextContent}\n\nQuestion: ${question}`;
 
     const llmRawResponse = await generateChatCompletion(systemPrompt, userPrompt);
-    
+
     let responsePayload;
     try {
       responsePayload = JSON.parse(llmRawResponse);
@@ -139,7 +144,9 @@ Strictly enforce that you only include citations for chunk_ids that are present 
       content_snippet: chunk.content.substring(0, 200) + "..."
     }));
 
-    return res.status(200).json(responsePayload);
+    await setCache(cacheKey, responsePayload, CACHE_TTL.COMPLIANCE_QUERY);
+
+    return res.status(200).json({ ...responsePayload, cached: false });
   } catch (error) {
     console.error("Compliance search error:", error);
     return res.status(500).json({ error: "An error occurred during compliance query synthesis." });

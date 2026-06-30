@@ -1,11 +1,12 @@
 import express from "express";
 import passport from "passport";
 import { register, login, googleCallback } from "../controllers/auth.js";
+import { validateRegister, validateLogin } from "../middleware/validate.js";
 
 const router = express.Router();
 
-router.post("/register", register);
-router.post("/login", login);
+router.post("/register", validateRegister, register);
+router.post("/login", validateLogin, login);
 
 router.get(
   "/google",
