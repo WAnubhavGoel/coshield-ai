@@ -6,6 +6,7 @@ import passport from "passport";
 import "./passport.js";
 import authRouter from "./routes/auth.js";
 import documentsRouter from "./routes/documents.js";
+import complianceRouter from "./routes/compliance.js";
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use("/uploads", express.static("./uploads"));
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/documents", documentsRouter);
+app.use("/api/v1/compliance", complianceRouter);
 
 app.use((err, req, res, next) => {
   console.error("Global Error Handler caught:", err);
