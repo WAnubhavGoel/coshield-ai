@@ -1,5 +1,5 @@
 import { prisma } from "../prisma/prisma.js";
-import { getEmbedding, generateChatCompletion } from "../services/openai.js";
+import { getEmbedding, generateChatCompletion } from "../services/gemini.js";
 import { getCached, setCache, buildComplianceCacheKey } from "../services/cache.js";
 import { CACHE_TTL } from "../config/constants.js";
 

@@ -2,7 +2,7 @@ import { Worker } from "bullmq";
 import fs from "fs/promises";
 import crypto from "crypto";
 import { prisma } from "../prisma/prisma.js";
-import { getEmbedding } from "./openai.js";
+import { getEmbedding } from "./gemini.js";
 import { QUEUE_NAME, redisConnection } from "./queue.js";
 import { invalidateByPattern } from "./cache.js";
 

@@ -2,7 +2,7 @@
 
 > **Enterprise AI-Powered Compliance Intelligence Platform**
 
-CoShield AI enables organizations to query their entire policy and compliance document library using natural language. It synthesizes accurate, source-cited answers from ingested PDFs using a hybrid RAG (Retrieval-Augmented Generation) pipeline — combining semantic vector search with full-text search, fused via Reciprocal Rank Fusion (RRF) and synthesized by GPT-4o.
+CoShield AI enables organizations to query their entire policy and compliance document library using natural language. It synthesizes accurate, source-cited answers from ingested PDFs using a hybrid RAG (Retrieval-Augmented Generation) pipeline — combining semantic vector search with full-text search, fused via Reciprocal Rank Fusion (RRF) and synthesized by Gemini 1.5 Flash.
 
 Built with a production-grade multi-tenant architecture, RBAC enforcement, background job processing, and Redis caching.
 
@@ -42,20 +42,18 @@ Built with a production-grade multi-tenant architecture, RBAC enforcement, backg
 │  │   BullMQ Workers    │   │     Redis (ioredis)       │    │
 │  │   PDF Ingestion     │◄──│  Queue + Response Cache   │    │
 │  │   Text Chunking     │   │  TTL: 1 hour per query    │    │
-│  │   OpenAI Embeddings │   └──────────────────────────┘    │
+│  │   Gemini Embeddings │   └──────────────────────────┘    │
 │  └─────────────────────┘                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Key Features
-
 ### 🤖 Hybrid RAG Pipeline
-- **Vector Search** — OpenAI `text-embedding-ada-002` embeddings stored in `pgvector`
+- **Vector Search** — Google Gemini `text-embedding-004` embeddings stored in `pgvector`
 - **Full-Text Search** — PostgreSQL native FTS with `ts_vector` indexing
 - **RRF Fusion** — Reciprocal Rank Fusion combines both result sets for superior relevance
-- **GPT-4o Synthesis** — Context-aware answers generated with inline source attribution
+- **Gemini Synthesis** — Context-aware answers generated with inline source attribution
 
 ### 🏢 Multi-Tenant Architecture
 - Organizations are fully isolated at the database level via `tenantId` scoping on every query
@@ -98,7 +96,8 @@ Built with a production-grade multi-tenant architecture, RBAC enforcement, backg
 | Validation | express-validator |
 | Rate Limiting | express-rate-limit |
 | File Upload | Multer |
-| AI | OpenAI SDK (embeddings + GPT-4o) |
+| AI | Google Gemini API (embeddings + Gemini 1.5 Flash) |
+
 
 ### Frontend
 | Layer | Technology |
@@ -131,7 +130,7 @@ coshield-ai/
 │   │   ├── auth.js             # authenticateJWT, requireRole
 │   │   └── validate.js         # express-validator schemas
 │   ├── services/
-│   │   ├── openai.js           # Embedding generation + GPT-4o synthesis
+│   │   ├── gemini.js           # Embedding generation + Gemini 1.5 Flash synthesis
 │   │   ├── queue.js            # BullMQ DocumentQueue definition
 │   │   ├── worker.js           # PDF ingestion worker + cache invalidation
 │   │   └── cache.js            # Redis cache read/write/invalidate helpers
@@ -167,7 +166,7 @@ coshield-ai/
 - Node.js >= 20
 - PostgreSQL with `pgvector` extension (or a [NeonDB](https://neon.tech) account)
 - Redis (local or [Upstash](https://upstash.com))
-- OpenAI API key
+- Google Gemini API key (Free)
 
 ### 1. Clone the repository
 
@@ -195,7 +194,7 @@ Fill in `.env`:
 DATABASE_URL="postgresql://..."
 JWT_SECRET="your-super-secret-key-change-in-production"
 REDIS_URL="redis://127.0.0.1:6379"
-OPENAI_API_KEY="sk-..."
+GEMINI_API_KEY="AIzaSy..."
 PORT=5000
 NODE_ENV="development"
 CORS_ORIGIN="http://localhost:5173"
@@ -253,7 +252,7 @@ sudo service redis-server start
 ### Auth
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `POST` | `/api/v1/auth/register` | — | Register a new user + create tenant |
+| `POST` | `/api/v1/auth/register` | — | Register new user + tenant; accepts optional `role` field (`USER` \| `COMPLIANCE_OFFICER` \| `ADMIN`) |
 | `POST` | `/api/v1/auth/login` | — | Login, returns JWT |
 | `GET` | `/api/v1/auth/status` | JWT | Validate token, return current user |
 | `POST` | `/api/v1/auth/logout` | JWT | Logout (client-side token removal) |
@@ -297,7 +296,7 @@ User Question
 1. Cache Check (Redis)
       │ miss
       ▼
-2. Generate Question Embedding (OpenAI text-embedding-ada-002)
+2. Generate Question Embedding (Google Gemini text-embedding-004)
       │
       ▼
 3. Vector Search  +  Full-Text Search  (run in parallel via raw SQL)
@@ -311,7 +310,7 @@ User Question
 5. Top-N chunks retrieved (filtered by tenantId + roleRequired)
                │
                ▼
-6. GPT-4o Synthesis
+6. Gemini 1.5 Flash Synthesis
    System: "You are a compliance officer AI..."
    Context: [top chunks with page numbers + document titles]
                │
@@ -334,10 +333,13 @@ User Question
 | Upload documents | ❌ | ✅ | ✅ |
 | Access admin-only documents | ❌ | ❌ | ✅ |
 
-> **Tip for recruiters:** To explore upload and admin features, update your user's role directly in your database:
-> ```sql
-> UPDATE "User" SET role = 'ADMIN' WHERE email = 'your@email.com';
-> ```
+> **For recruiters:** On the **Register** page, use the **"Register as"** toggle to select your role before signing up:
+>
+> | Selection | What you can do |
+> |---|---|
+> | User | Query compliance documents |
+> | Compliance Officer | Upload PDFs + query documents |
+> | **Admin** | **Full access — recommended for demo** |
 
 ---
 
@@ -348,7 +350,7 @@ User Question
 - **Input validation** on all auth routes via `express-validator`
 - **Rate limiting** — Dedicated stricter limits on auth endpoints
 - **Tenant isolation** — All DB queries scoped to `tenantId` extracted from JWT
-- **Role injection prevention** — Role field stripped from registration request body
+- **Role whitelisting** — Role field is validated against an allowed list (`USER`, `COMPLIANCE_OFFICER`, `ADMIN`) on the backend; arbitrary values are rejected and fall back to `USER`
 - **CORS** — Configurable allowed origins via environment variable
 - **Stack traces** — Only exposed in `development` mode
 
@@ -361,7 +363,7 @@ User Question
 | `DATABASE_URL` | ✅ | PostgreSQL connection string |
 | `JWT_SECRET` | ✅ | Secret key for signing JWTs |
 | `REDIS_URL` | ✅ | Redis connection string |
-| `OPENAI_API_KEY` | ✅ | For embeddings + GPT-4o synthesis |
+| `GEMINI_API_KEY` | — | Google Gemini API key (recommended for free tier RAG queries) |
 | `PORT` | — | Server port (default: `5000`) |
 | `NODE_ENV` | — | `development` or `production` |
 | `CORS_ORIGIN` | — | Allowed frontend origin |
