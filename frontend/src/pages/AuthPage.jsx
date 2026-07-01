@@ -58,7 +58,7 @@ export default function AuthPage() {
 
   const [tab, setTab] = useState("login");
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", tenantName: "" });
+  const [form, setForm] = useState({ email: "", password: "", tenantName: "", role: "USER" });
   const [errors, setErrors] = useState({});
 
   if (currentUser) return <Navigate to="/dashboard" replace />;
@@ -104,6 +104,7 @@ export default function AuthPage() {
           email: form.email,
           password: form.password,
           tenantName: form.tenantName,
+          role: form.role,
         });
       }
       const data = response.data;
@@ -217,21 +218,45 @@ export default function AuthPage() {
             </div>
 
             {tab === "register" && (
-              <div className="field">
-                <label htmlFor="tenantName">Organization Name</label>
-                <input
-                  id="tenantName"
-                  name="tenantName"
-                  type="text"
-                  placeholder="Acme Corp"
-                  value={form.tenantName}
-                  onChange={handleChange}
-                  autoComplete="organization"
-                />
-                {errors.tenantName && (
-                  <span className="field-error">⚠ {errors.tenantName}</span>
-                )}
-              </div>
+              <>
+                <div className="field">
+                  <label htmlFor="tenantName">Organization Name</label>
+                  <input
+                    id="tenantName"
+                    name="tenantName"
+                    type="text"
+                    placeholder="Acme Corp"
+                    value={form.tenantName}
+                    onChange={handleChange}
+                    autoComplete="organization"
+                  />
+                  {errors.tenantName && (
+                    <span className="field-error">⚠ {errors.tenantName}</span>
+                  )}
+                </div>
+
+                <div className="field">
+                  <label htmlFor="role">Register as</label>
+                  <div className="role-selector">
+                    {[
+                      { value: 'USER', label: 'User', desc: 'Can query documents' },
+                      { value: 'COMPLIANCE_OFFICER', label: 'Compliance Officer', desc: 'Can upload & query' },
+                      { value: 'ADMIN', label: 'Admin', desc: 'Full access' },
+                    ].map((r) => (
+                      <button
+                        key={r.value}
+                        type="button"
+                        id={`role-${r.value.toLowerCase()}`}
+                        className={`role-option ${form.role === r.value ? 'active' : ''}`}
+                        onClick={() => setForm(prev => ({ ...prev, role: r.value }))}
+                      >
+                        <span className="role-option-label">{r.label}</span>
+                        <span className="role-option-desc">{r.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="field">

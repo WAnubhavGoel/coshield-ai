@@ -812,6 +812,55 @@ input, textarea, select {
   transform: translateY(-1px);
 }
 
+/* --- Role Selector --- */
+.role-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.role-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease);
+  text-align: center;
+}
+
+.role-option:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-surface);
+}
+
+.role-option.active {
+  border-color: var(--primary);
+  background: rgba(6, 182, 212, 0.08);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.role-option-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.role-option.active .role-option-label {
+  color: var(--primary);
+}
+
+.role-option-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
 /* ================================================
    DASHBOARD PAGE
    ================================================ */
