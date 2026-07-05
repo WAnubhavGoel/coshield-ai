@@ -317,19 +317,6 @@ export default function DocumentsPage() {
       </header>
 
       <div className="page-content page-enter">
-        {/* Upload Prompt (for non-uploaders) */}
-        {!canUpload && (
-          <div
-            className="upload-zone"
-            style={{ cursor: 'default', opacity: 0.6, marginBottom: '24px' }}
-          >
-            <div className="upload-icon">
-              <IconUpload />
-            </div>
-            <h3>Document Upload</h3>
-            <p>Only Compliance Officers and Admins can upload documents.</p>
-          </div>
-        )}
 
         {/* Documents Table */}
         <div className="docs-table">
