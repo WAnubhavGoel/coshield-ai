@@ -8,15 +8,30 @@ import { invalidateByPattern } from "./cache.js";
 
 async function extractTextFromPDF(filePath) {
   try {
-    const dataBuffer = await fs.readFile(filePath);
+    let dataBuffer;
+    
+    // Support remote URLs (e.g. Cloudinary) as well as local disk paths
+    if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+      console.log(`Downloading remote PDF from: ${filePath}`);
+      const response = await fetch(filePath);
+      if (!response.ok) throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+      dataBuffer = Buffer.from(await response.arrayBuffer());
+    } else {
+      dataBuffer = await fs.readFile(filePath);
+    }
 
     try {
-      const pdfParse = (await import("pdf-parse")).default;
+      const pdfModule = await import("pdf-parse");
+      // pdf-parse is CommonJS — in ESM interop, the function is either .default or the module itself
+      const pdfParse = pdfModule.default ?? pdfModule;
+      if (typeof pdfParse !== "function") throw new Error("pdf-parse did not export a function");
       const data = await pdfParse(dataBuffer);
-      return data.text || "";
-    } catch {
-      console.warn("pdf-parse is not installed or failed to load. Falling back to printable-ASCII regex extractor.");
-      const contentString = dataBuffer.toString("binary");
+      const text = data.text || "";
+      console.log(`pdf-parse extracted ${text.length} characters from ${filePath}`);
+      return text;
+    } catch (pdfErr) {
+      console.warn("pdf-parse failed:", pdfErr.message, "— falling back to regex extractor.");
+      const contentString = dataBuffer.toString("latin1");
       const textMatches = contentString.match(/[\x20-\x7E]{8,}/g);
       if (textMatches && textMatches.length > 0) {
         return textMatches.join("\n");
@@ -28,6 +43,7 @@ async function extractTextFromPDF(filePath) {
     throw error;
   }
 }
+
 
 function chunkText(text, size = 500, overlap = 100) {
   const chunks = [];

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import axios from '../api/axiosConfig';
 
 const IconSend = () => (
@@ -91,13 +92,54 @@ function CitationsPanel({ citations, sourceDocuments }) {
 
 export default function ComplianceQueryPage() {
   const toast = useToast();
-  const [messages, setMessages] = useState([]);
+  const { currentUser } = useAuth();
+
+  const storageKey = currentUser ? `coshield_chat_history_${currentUser.id}` : 'coshield_chat_history_guest';
+  const citationsKey = currentUser ? `coshield_chat_citations_${currentUser.id}` : 'coshield_chat_citations_guest';
+  const sourcesKey = currentUser ? `coshield_chat_sources_${currentUser.id}` : 'coshield_chat_sources_guest';
+
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [lastCitations, setLastCitations] = useState([]);
-  const [lastSources, setLastSources] = useState([]);
+  const [lastCitations, setLastCitations] = useState(() => {
+    try {
+      const saved = localStorage.getItem(citationsKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [lastSources, setLastSources] = useState(() => {
+    try {
+      const saved = localStorage.getItem(sourcesKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const chatRef = useRef(null);
   const textareaRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(messages));
+  }, [messages, storageKey]);
+
+  useEffect(() => {
+    localStorage.setItem(citationsKey, JSON.stringify(lastCitations));
+  }, [lastCitations, citationsKey]);
+
+  useEffect(() => {
+    localStorage.setItem(sourcesKey, JSON.stringify(lastSources));
+  }, [lastSources, sourcesKey]);
+
 
   useEffect(() => {
     if (chatRef.current) {
@@ -158,8 +200,23 @@ export default function ComplianceQueryPage() {
           <h1>Compliance Query</h1>
           <p>Ask questions about your security policies and compliance documents</p>
         </div>
-        <div className="topbar-right">
-          <span className="badge badge-info">GPT-4o-mini · Hybrid RAG</span>
+        <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span className="badge badge-info">Gemini 2.5 Flash · Hybrid RAG</span>
+          {messages.length > 0 && (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ padding: '4px 10px', fontSize: '12px' }}
+              onClick={() => {
+                if (window.confirm("Clear all chat messages and citations?")) {
+                  setMessages([]);
+                  setLastCitations([]);
+                  setLastSources([]);
+                }
+              }}
+            >
+              Clear Chat
+            </button>
+          )}
         </div>
       </header>
 

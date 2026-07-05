@@ -7,9 +7,17 @@ let connection = null;
 let documentQueue = null;
 
 try {
-  connection = new Redis(REDIS_URL, {
+  const redisOptions = {
     maxRetriesPerRequest: null,
-  });
+  };
+
+  if (REDIS_URL.startsWith("rediss://")) {
+    redisOptions.tls = {
+      rejectUnauthorized: false
+    };
+  }
+
+  connection = new Redis(REDIS_URL, redisOptions);
 
   connection.on("error", (err) => {
     console.error("Redis connection error:", err.message);

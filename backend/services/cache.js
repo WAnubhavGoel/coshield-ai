@@ -40,3 +40,4 @@ export const buildComplianceCacheKey = (tenantId, userRole, departments, questio
 export const buildDocumentsCacheKey = (tenantId) => {
   return buildKey("coshield", "documents", tenantId);
 };
+

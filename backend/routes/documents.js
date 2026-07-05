@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { authenticateJWT, requireRole } from "../middleware/auth.js";
-import { uploadDocument, getDocuments, getDocumentStatus } from "../controllers/documents.js";
+import { uploadDocument, getDocuments, getDocumentStatus, serveDocument, getDocumentStats, deleteDocument } from "../controllers/documents.js";
 
 const router = express.Router();
 
@@ -45,6 +45,9 @@ router.post(
 );
 
 router.get("/", authenticateJWT, getDocuments);
+router.get("/stats", authenticateJWT, getDocumentStats);
 router.get("/:id/status", authenticateJWT, getDocumentStatus);
+router.get("/:id/serve", authenticateJWT, serveDocument);
+router.delete("/:id", authenticateJWT, requireRole("COMPLIANCE_OFFICER"), deleteDocument);
 
 export default router;

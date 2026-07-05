@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import axios from '../api/axiosConfig';
+
+const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
 const IconUpload = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -22,6 +25,29 @@ const IconRefresh = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <polyline points="23 4 23 10 17 10"/>
     <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+  </svg>
+);
+
+const IconEye = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+
+const IconX = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
+  </svg>
+);
+
+const IconTrash = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="3 6 5 6 21 6"/>
+    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+    <path d="M10 11v6"/><path d="M14 11v6"/>
+    <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
   </svg>
 );
 
@@ -46,6 +72,34 @@ const RoleBadge = ({ role }) => {
   return <span className={`badge ${cls}`}>{label}</span>;
 };
 
+/* ── Document Viewer Drawer ─────────────────────────────────────── */
+function DocumentViewerDrawer({ doc, token, onClose }) {
+  const serveUrl = `${VITE_API_URL}/documents/${doc.id}/serve?token=${encodeURIComponent(token)}`;
+
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="doc-viewer-drawer" onClick={e => e.stopPropagation()}>
+        <div className="drawer-title">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ color: 'var(--danger)', opacity: 0.8 }}><IconFile /></span>
+            {doc.title}
+          </div>
+          <button className="close-btn" onClick={onClose}><IconX /></button>
+        </div>
+        <div className="doc-viewer-frame-wrap">
+          <iframe
+            src={serveUrl}
+            title={doc.title}
+            className="doc-viewer-frame"
+            type="application/pdf"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Upload Drawer ──────────────────────────────────────────────── */
 function UploadDrawer({ onClose, onSuccess, userRole }) {
   const toast = useToast();
   const [file, setFile] = useState(null);
@@ -178,12 +232,18 @@ function UploadDrawer({ onClose, onSuccess, userRole }) {
   );
 }
 
+/* ── Main Page ──────────────────────────────────────────────────── */
 export default function DocumentsPage() {
   const { currentUser } = useAuth();
   const toast = useToast();
+  const [searchParams] = useSearchParams();
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  const [viewerDoc, setViewerDoc] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const canManage = currentUser?.role === 'COMPLIANCE_OFFICER' || currentUser?.role === 'ADMIN';
 
   const load = async () => {
     setLoading(true);
@@ -199,13 +259,39 @@ export default function DocumentsPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Auto-open upload drawer if navigated from dashboard quick action
+    if (searchParams.get('upload') === 'true') {
+      setShowUpload(true);
+    }
+  }, []);
 
   const canUpload = currentUser?.role === 'COMPLIANCE_OFFICER' || currentUser?.role === 'ADMIN';
+
+  const handleDelete = async (e, docId, docTitle) => {
+    e.stopPropagation(); // prevent row click (viewer) from firing
+    if (!window.confirm(`Delete "${docTitle}" and all its indexed chunks? This cannot be undone.`)) return;
+    setDeletingId(docId);
+    try {
+      await axios.delete(`/documents/${docId}`);
+      toast(`"${docTitle}" deleted successfully`, 'success');
+      setDocs(prev => prev.filter(d => d.id !== docId));
+      if (viewerDoc?.id === docId) setViewerDoc(null);
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Delete failed';
+      toast(msg, 'error');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const fmt = (iso) => new Date(iso).toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric'
   });
+
+  // Get JWT token from localStorage for the iframe serve URL
+  const token = localStorage.getItem('coshield_token') || '';
 
   return (
     <>
@@ -249,7 +335,7 @@ export default function DocumentsPage() {
         <div className="docs-table">
           <div className="docs-table-header">
             <h2>All Documents ({docs.length})</h2>
-            <span className="badge badge-info">Auto-refreshes on upload</span>
+            <span className="badge badge-info">Click a row to preview</span>
           </div>
 
           {loading ? (
@@ -276,11 +362,17 @@ export default function DocumentsPage() {
                   <th>Department</th>
                   <th>Uploaded By</th>
                   <th>Date</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {docs.map((doc) => (
-                  <tr key={doc.id}>
+                  <tr
+                    key={doc.id}
+                    className="doc-row-clickable"
+                    onClick={() => setViewerDoc(doc)}
+                    title="Click to preview document"
+                  >
                     <td>
                       <div className="doc-icon">
                         <span style={{ color: 'var(--danger)', opacity: 0.8 }}><IconFile /></span>
@@ -298,6 +390,25 @@ export default function DocumentsPage() {
                     <td style={{ color: 'var(--text-muted)', fontSize: '12.5px' }}>
                       {fmt(doc.createdAt)}
                     </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+                        <span className="doc-preview-hint">
+                          <IconEye /> Preview
+                        </span>
+                        {canManage && (
+                          <button
+                            className="btn-delete-doc"
+                            title="Delete document"
+                            disabled={deletingId === doc.id}
+                            onClick={(e) => handleDelete(e, doc.id, doc.title)}
+                          >
+                            {deletingId === doc.id
+                              ? <div className="spinner" style={{ width: 12, height: 12 }} />
+                              : <IconTrash />}
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -311,6 +422,14 @@ export default function DocumentsPage() {
           onClose={() => setShowUpload(false)}
           onSuccess={load}
           userRole={currentUser?.role}
+        />
+      )}
+
+      {viewerDoc && (
+        <DocumentViewerDrawer
+          doc={viewerDoc}
+          token={token}
+          onClose={() => setViewerDoc(null)}
         />
       )}
     </>

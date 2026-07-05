@@ -62,9 +62,9 @@ export const queryCompliance = async (req, res) => {
         1 - (c.embedding <=> cast(${embeddingString} as vector)) as "similarityScore"
       FROM "DocumentChunk" c
       JOIN "Document" d ON c."documentId" = d.id
-      WHERE c."tenantId" = ${tenantId}::uuid
+      WHERE c."tenantId" = ${tenantId}
         AND c."roleRequired" <= ${userRole}::"Role"
-        AND (c."departmentId" IS NULL OR c."departmentId" = ANY(${userDepartments}::uuid[]))
+        AND (c."departmentId" IS NULL OR c."departmentId" = ANY(${userDepartments}::text[]))
       ORDER BY c.embedding <=> cast(${embeddingString} as vector)
       LIMIT 10
     `;
@@ -79,9 +79,9 @@ export const queryCompliance = async (req, res) => {
         ts_rank(to_tsvector('english', c.content), plainto_tsquery('english', ${question})) as "relevanceScore"
       FROM "DocumentChunk" c
       JOIN "Document" d ON c."documentId" = d.id
-      WHERE c."tenantId" = ${tenantId}::uuid
+      WHERE c."tenantId" = ${tenantId}
         AND c."roleRequired" <= ${userRole}::"Role"
-        AND (c."departmentId" IS NULL OR c."departmentId" = ANY(${userDepartments}::uuid[]))
+        AND (c."departmentId" IS NULL OR c."departmentId" = ANY(${userDepartments}::text[]))
         AND to_tsvector('english', c.content) @@ plainto_tsquery('english', ${question})
       ORDER BY "relevanceScore" DESC
       LIMIT 10
@@ -130,10 +130,37 @@ Strictly enforce that you only include citations for chunk_ids that are present 
 
     let responsePayload;
     try {
-      responsePayload = JSON.parse(llmRawResponse);
-    } catch {
-      const cleaned = llmRawResponse.replace(/```json|```/g, "").trim();
-      responsePayload = JSON.parse(cleaned);
+      // Find the first '{' and last '}' to extract only the JSON object
+      const startIdx = llmRawResponse.indexOf("{");
+      const endIdx = llmRawResponse.lastIndexOf("}");
+      
+      if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
+        throw new Error("No JSON object found in response");
+      }
+      
+      const jsonString = llmRawResponse.substring(startIdx, endIdx + 1);
+      responsePayload = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.warn("Standard JSON parsing failed, trying cleaned fallback. Raw response was:", llmRawResponse);
+      try {
+        const cleaned = llmRawResponse.replace(/```json|```/g, "").trim();
+        responsePayload = JSON.parse(cleaned);
+      } catch (fallbackError) {
+        console.error("All JSON parsing attempts failed:", fallbackError);
+        // Fallback response instead of 500ing
+        responsePayload = {
+          answer: llmRawResponse || "An error occurred while parsing the AI response.",
+          citations: []
+        };
+      }
+    }
+
+    // Ensure responsePayload is an object
+    if (!responsePayload || typeof responsePayload !== "object") {
+      responsePayload = {
+        answer: String(responsePayload || "Invalid AI response format."),
+        citations: []
+      };
     }
 
     responsePayload.source_documents = fusedChunks.map(chunk => ({

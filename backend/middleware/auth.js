@@ -5,15 +5,29 @@ import { JWT_SECRET, ROLE_HIERARCHY } from "../config/constants.js";
 export const authenticateJWT = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  // Support token in query string for iframe/embed use-cases (e.g. PDF viewer)
+  let token = req.query.token || null;
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1];
+  }
+
+  if (!token) {
     return res.status(401).json({ error: "Access token missing or malformed" });
   }
 
-  const token = authHeader.split(" ")[1];
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Token has expired. Please log in again." });
+    }
+    return res.status(403).json({ error: "Invalid token" });
+  }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
@@ -40,11 +54,9 @@ export const authenticateJWT = async (req, res, next) => {
     };
 
     next();
-  } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ error: "Token has expired. Please log in again." });
-    }
-    return res.status(403).json({ error: "Invalid token" });
+  } catch (dbError) {
+    console.error("Database error during user authentication:", dbError);
+    return res.status(500).json({ error: "Database error during authentication" });
   }
 };
 
