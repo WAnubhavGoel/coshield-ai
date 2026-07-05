@@ -25,6 +25,19 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
+  const signIn = async (token) => {
+    localStorage.setItem('coshield_token', token);
+    try {
+      const response = await axios.get('/auth/status');
+      if (response.data.isAuthenticated) {
+        setCurrentUser(response.data.user);
+      }
+    } catch (error) {
+      console.error("OAuth token verification failed", error);
+      setCurrentUser(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#07090f' }}>
@@ -34,7 +47,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, setCurrentUser }}>
+    <AuthContext.Provider value={{ currentUser, setCurrentUser, signIn }}>
       {children}
     </AuthContext.Provider>
   );
