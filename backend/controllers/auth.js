@@ -20,7 +20,6 @@ const generateToken = (user) => {
 export const register = async (req, res) => {
   const { email, password, tenantName, role } = req.body;
 
-  // Whitelist allowed roles — prevents arbitrary role injection beyond what the UI offers
   const ALLOWED_ROLES = ['USER', 'COMPLIANCE_OFFICER', 'ADMIN'];
   const assignedRole = ALLOWED_ROLES.includes(role) ? role : 'USER';
 

@@ -72,7 +72,6 @@ const RoleBadge = ({ role }) => {
   return <span className={`badge ${cls}`}>{label}</span>;
 };
 
-/* ── Document Viewer Drawer ─────────────────────────────────────── */
 function DocumentViewerDrawer({ doc, token, onClose }) {
   const serveUrl = `${VITE_API_URL}/documents/${doc.id}/serve?token=${encodeURIComponent(token)}`;
 
@@ -99,7 +98,6 @@ function DocumentViewerDrawer({ doc, token, onClose }) {
   );
 }
 
-/* ── Upload Drawer ──────────────────────────────────────────────── */
 function UploadDrawer({ onClose, onSuccess, userRole }) {
   const toast = useToast();
   const [file, setFile] = useState(null);
@@ -169,7 +167,7 @@ function UploadDrawer({ onClose, onSuccess, userRole }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Drop Zone */}
+          {}
           <div
             className={`upload-zone ${drag ? 'drag-over' : ''}`}
             style={{ padding: '28px', marginBottom: 0 }}
@@ -232,7 +230,6 @@ function UploadDrawer({ onClose, onSuccess, userRole }) {
   );
 }
 
-/* ── Main Page ──────────────────────────────────────────────────── */
 export default function DocumentsPage() {
   const { currentUser } = useAuth();
   const toast = useToast();
@@ -261,7 +258,7 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     load();
-    // Auto-open upload drawer if navigated from dashboard quick action
+    
     if (searchParams.get('upload') === 'true') {
       setShowUpload(true);
     }
@@ -270,7 +267,7 @@ export default function DocumentsPage() {
   const canUpload = currentUser?.role === 'COMPLIANCE_OFFICER' || currentUser?.role === 'ADMIN';
 
   const handleDelete = async (e, docId, docTitle) => {
-    e.stopPropagation(); // prevent row click (viewer) from firing
+    e.stopPropagation(); 
     if (!window.confirm(`Delete "${docTitle}" and all its indexed chunks? This cannot be undone.`)) return;
     setDeletingId(docId);
     try {
@@ -290,7 +287,6 @@ export default function DocumentsPage() {
     month: 'short', day: 'numeric', year: 'numeric'
   });
 
-  // Get JWT token from localStorage for the iframe serve URL
   const token = localStorage.getItem('coshield_token') || '';
 
   return (
@@ -318,7 +314,7 @@ export default function DocumentsPage() {
 
       <div className="page-content page-enter">
 
-        {/* Documents Table */}
+        {}
         <div className="docs-table">
           <div className="docs-table-header">
             <h2>All Documents ({docs.length})</h2>

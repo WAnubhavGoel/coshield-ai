@@ -148,7 +148,7 @@ export default function Dashboard() {
       </header>
 
       <div className="page-content page-enter">
-        {/* Stats */}
+        {}
         <div className="stats-grid">
           {stats.map((s) => (
             <div key={s.label} className={`stat-card stat-${s.color}`}>
@@ -162,9 +162,9 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Content Grid */}
+        {}
         <div className="dashboard-grid">
-          {/* Recent Activity */}
+          {}
           <div className="card">
             <div className="section-header">
               <div>
@@ -186,7 +186,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Quick Actions */}
+          {}
           <div className="card">
             <div className="section-header">
               <div>

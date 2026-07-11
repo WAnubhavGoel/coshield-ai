@@ -127,7 +127,7 @@ export default function AuthPage() {
 
   return (
     <div className="auth-page">
-      {/* Left — Hero */}
+      {}
       <div className="auth-hero">
         <div className="auth-hero-bg">
           <div className="auth-hero-orb auth-hero-orb-1" />
@@ -172,7 +172,7 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* Right — Form */}
+      {}
       <div className="auth-form-panel">
         <div className="auth-form-box">
           <div className="auth-logo">

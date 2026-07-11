@@ -23,16 +23,13 @@ export const deleteDocument = async (req, res) => {
       return res.status(403).json({ error: "Access Denied" });
     }
 
-    // Delete all chunks first (FK constraint)
     await prisma.documentChunk.deleteMany({ where: { documentId: id } });
 
-    // Delete the document record
     await prisma.document.delete({ where: { id } });
 
-    // Clean up file storage
     if (document.s3Url) {
       if (document.s3Url.startsWith("http://") || document.s3Url.startsWith("https://")) {
-        // Cloudinary upload: delete it from cloud storage
+        
         if (process.env.CLOUDINARY_CLOUD_NAME) {
           cloudinary.config({
             cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -42,16 +39,14 @@ export const deleteDocument = async (req, res) => {
           await cloudinary.uploader.destroy(`coshield_documents/${id}`, { resource_type: "raw" }).catch(() => {});
         }
       } else {
-        // Local upload: delete it from local disk
+        
         await fs.unlink(document.s3Url).catch(() => {});
       }
     }
 
-    // Invalidate cache
     await invalidateByPattern(`coshield:documents:${req.user.tenantId}*`);
     await invalidateByPattern(`coshield:compliance:${req.user.tenantId}:*`);
 
-    console.log(`Document "${document.title}" (${id}) deleted by ${req.user.email}`);
     return res.status(200).json({ message: "Document deleted successfully" });
   } catch (error) {
     console.error("Delete document error:", error);
@@ -70,15 +65,13 @@ export const uploadDocument = async (req, res) => {
   const documentTitle = title || path.basename(file.originalname, path.extname(file.originalname));
   const targetRole = roleRequired || "USER";
 
-  // Create document ID beforehand so we can use it as Cloudinary public ID
   const tempId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 
   try {
     let fileUrl = file.path;
 
-    // Check if Cloudinary is configured
     if (process.env.CLOUDINARY_CLOUD_NAME) {
-      console.log(`Cloudinary is configured. Uploading ${file.originalname} to cloud storage...`);
+      
       cloudinary.config({
         cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
         api_key: process.env.CLOUDINARY_API_KEY,
@@ -92,9 +85,7 @@ export const uploadDocument = async (req, res) => {
       });
 
       fileUrl = uploadResult.secure_url;
-      console.log(`Successfully uploaded file to Cloudinary: ${fileUrl}`);
 
-      // Clean up the local temp file saved by multer
       await fs.unlink(file.path).catch(() => {});
     }
 
@@ -119,7 +110,7 @@ export const uploadDocument = async (req, res) => {
         roleRequired: targetRole,
         departmentId: departmentId || null
       });
-      console.log(`Dispatched background parsing job for Document: ${document.id}`);
+      
     } else {
       console.warn("BullMQ queue is not available. Document will remain in PENDING status.");
     }
@@ -222,7 +213,7 @@ export const serveDocument = async (req, res) => {
     const filePath = document.s3Url;
 
     if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
-      console.log(`Redirecting document request to remote storage: ${filePath}`);
+      
       return res.redirect(filePath);
     }
 

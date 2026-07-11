@@ -130,7 +130,7 @@ Strictly enforce that you only include citations for chunk_ids that are present 
 
     let responsePayload;
     try {
-      // Find the first '{' and last '}' to extract only the JSON object
+      
       const startIdx = llmRawResponse.indexOf("{");
       const endIdx = llmRawResponse.lastIndexOf("}");
       
@@ -147,7 +147,7 @@ Strictly enforce that you only include citations for chunk_ids that are present 
         responsePayload = JSON.parse(cleaned);
       } catch (fallbackError) {
         console.error("All JSON parsing attempts failed:", fallbackError);
-        // Fallback response instead of 500ing
+        
         responsePayload = {
           answer: llmRawResponse || "An error occurred while parsing the AI response.",
           citations: []
@@ -155,7 +155,6 @@ Strictly enforce that you only include citations for chunk_ids that are present 
       }
     }
 
-    // Ensure responsePayload is an object
     if (!responsePayload || typeof responsePayload !== "object") {
       responsePayload = {
         answer: String(responsePayload || "Invalid AI response format."),

@@ -140,7 +140,6 @@ export default function ComplianceQueryPage() {
     localStorage.setItem(sourcesKey, JSON.stringify(lastSources));
   }, [lastSources, sourcesKey]);
 
-
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -155,7 +154,6 @@ export default function ComplianceQueryPage() {
     setMessages(prev => [...prev, { role: 'user', content: question }]);
     setLoading(true);
 
-    // Reset textarea height
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     try {
@@ -222,7 +220,7 @@ export default function ComplianceQueryPage() {
 
       <div className="page-content page-enter" style={{ height: 'calc(100vh - var(--topbar-h) - 64px)', display: 'flex', flexDirection: 'column' }}>
         <div className="query-layout" style={{ flex: 1 }}>
-          {/* Chat Panel */}
+          {}
           <div className="query-panel">
             <div className="query-panel-header">
               <div style={{
@@ -322,7 +320,7 @@ export default function ComplianceQueryPage() {
             </div>
           </div>
 
-          {/* Citations Panel */}
+          {}
           <CitationsPanel citations={lastCitations} sourceDocuments={lastSources} />
         </div>
       </div>

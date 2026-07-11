@@ -22,7 +22,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(passport.initialize());
 
-// Strict rate limit on auth routes: 15 requests per 15 minutes per IP
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 15,
@@ -31,7 +30,6 @@ const authLimiter = rateLimit({
   message: { error: "Too many requests from this IP. Please try again later." }
 });
 
-// General API limit: 100 requests per minute per IP
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 100,

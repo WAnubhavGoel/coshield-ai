@@ -5,7 +5,6 @@ import { JWT_SECRET, ROLE_HIERARCHY } from "../config/constants.js";
 export const authenticateJWT = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  // Support token in query string for iframe/embed use-cases (e.g. PDF viewer)
   let token = req.query.token || null;
 
   if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -15,7 +14,6 @@ export const authenticateJWT = async (req, res, next) => {
   if (!token) {
     return res.status(401).json({ error: "Access token missing or malformed" });
   }
-
 
   let decoded;
   try {

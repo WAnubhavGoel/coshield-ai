@@ -10,9 +10,9 @@ Built with a production-grade multi-tenant architecture, RBAC enforcement, backg
 
 ## Live Demo
 
-> **Frontend:** `http://localhost:5173`  
-> **API:** `http://localhost:5000/api/v1`  
-> **Health Check:** `GET /health`
+> **Frontend:** [coshield-ai.vercel.app](https://coshield-ai.vercel.app)  
+> **API:** [coshield-ai-w8xq.onrender.com/api/v1](https://coshield-ai-w8xq.onrender.com/api/v1)  
+> **Health Check:** [coshield-ai-w8xq.onrender.com/health](https://coshield-ai-w8xq.onrender.com/health)
 
 ---
 
@@ -225,10 +225,14 @@ cd frontend
 npm install
 ```
 
-Create `.env`:
+Create `.env` (For local development, set this to localhost. In production, configure this on Vercel to point to your Render backend):
 
 ```env
+# Local Development
 VITE_API_URL=http://localhost:5000/api/v1
+
+# Production (Set in Vercel Dashboard Environment Variables)
+# VITE_API_URL=https://coshield-ai-w8xq.onrender.com/api/v1
 ```
 
 Start the frontend:

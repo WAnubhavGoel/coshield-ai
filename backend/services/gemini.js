@@ -18,7 +18,7 @@ export const getEmbedding = async (text) => {
         content: {
           parts: [{ text }]
         },
-        outputDimensionality: 1536 // Match the PostgreSQL pgvector column dimension exactly
+        outputDimensionality: 1536 
       })
     });
 
@@ -28,10 +28,10 @@ export const getEmbedding = async (text) => {
     }
 
     const result = await response.json();
-    return result.embedding.values; // Returns a 1536-dimension vector
+    return result.embedding.values; 
   } catch (error) {
     console.error("Error generating Gemini embedding, falling back to mock:", error.message);
-    // Fallback so the app doesn't crash during network errors or API exhaustion
+    
     const mockVector = Array.from({ length: 1536 }, () => (Math.random() * 2 - 1));
     const magnitude = Math.sqrt(mockVector.reduce((sum, val) => sum + val * val, 0));
     return mockVector.map(val => val / magnitude);

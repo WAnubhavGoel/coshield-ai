@@ -36,7 +36,6 @@ try {
     },
   });
 
-  console.log("BullMQ DocumentQueue initialized successfully using Redis.");
 } catch (error) {
   console.error("Failed to initialize Redis connection for BullMQ:", error.message);
 }
